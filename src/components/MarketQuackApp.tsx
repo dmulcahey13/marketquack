@@ -135,31 +135,31 @@ export function MarketQuackApp() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
           <div className="grid gap-4 pt-1">
-            <p className="w-fit rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-800">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-pulse-green">
               The market is loud. We make it make sense.
             </p>
             <div className="grid gap-3">
               <h1 className="max-w-2xl text-4xl font-black tracking-tight text-ink sm:text-5xl">
-                MarketQuack
+                Market<span className="text-pulse-green">Quack</span>
               </h1>
-              <p className="max-w-2xl text-lg leading-8 text-neutral-700">
+              <p className="max-w-2xl text-lg leading-8 text-neutral-300">
                 Search any stock and get a simple explanation of why it may be moving, backed by
                 recent news and source links.
               </p>
             </div>
           </div>
 
-          <section className="rounded-lg border border-line bg-white p-4 shadow-soft sm:p-5">
+          <section className="rounded-lg border border-line bg-panel p-4 shadow-soft sm:p-5">
           <form
             className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"
             onSubmit={handleSubmit}
           >
-            <label className="font-semibold" htmlFor="ticker">
+            <label className="font-semibold text-neutral-200" htmlFor="ticker">
               Search:
             </label>
             <input
               autoComplete="off"
-              className="min-h-12 min-w-0 rounded-md border border-line bg-paper px-4 text-base font-bold uppercase outline-none transition placeholder:font-normal placeholder:normal-case placeholder:text-neutral-500 focus:border-pulse-teal focus:bg-white"
+              className="min-h-12 min-w-0 rounded-md border border-line bg-paper px-4 text-base font-bold uppercase text-ink outline-none transition placeholder:font-normal placeholder:normal-case placeholder:text-neutral-500 focus:border-pulse-green focus:bg-black"
               id="ticker"
               maxLength={10}
               onChange={(event) => setTicker(event.target.value)}
@@ -167,7 +167,7 @@ export function MarketQuackApp() {
               value={ticker}
             />
             <button
-              className="min-h-12 rounded-md bg-ink px-5 font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-400 disabled:hover:translate-y-0"
+              className="min-h-12 rounded-md bg-pulse-green px-5 font-black text-black shadow-glow transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:bg-neutral-600 disabled:text-neutral-300 disabled:hover:translate-y-0"
               disabled={isLoading || isExplaining}
               type="submit"
             >
@@ -176,11 +176,11 @@ export function MarketQuackApp() {
           </form>
 
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4 text-sm">
-            <span className="font-semibold text-neutral-600">Watchlist:</span>
+            <span className="font-semibold text-neutral-300">Watchlist:</span>
             {watchlist.length > 0 ? (
               watchlist.map((symbol) => (
                 <button
-                  className="rounded-md border border-line bg-paper px-2.5 py-1.5 font-bold transition hover:-translate-y-0.5 hover:border-ink hover:bg-white"
+                  className="rounded-md border border-line bg-paper px-2.5 py-1.5 font-bold text-neutral-100 transition hover:-translate-y-0.5 hover:border-pulse-green hover:text-pulse-green"
                   key={symbol}
                   onClick={() => {
                     setTicker(symbol);
@@ -196,7 +196,7 @@ export function MarketQuackApp() {
             )}
             {currentTicker ? (
               <button
-                className="ml-auto rounded-md border border-line px-2.5 py-1.5 font-bold transition hover:border-ink hover:bg-paper"
+                className="ml-auto rounded-md border border-line px-2.5 py-1.5 font-bold text-neutral-100 transition hover:border-pulse-green hover:text-pulse-green"
                 onClick={toggleWatchlist}
                 type="button"
               >
@@ -208,7 +208,7 @@ export function MarketQuackApp() {
         </section>
 
         {error ? (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <div className="rounded-md border border-pulse-red/40 bg-pulse-red/10 px-4 py-3 text-sm font-semibold text-pulse-red">
             {error}
           </div>
         ) : null}

@@ -42,12 +42,12 @@ export function StockResult({
 }: StockResultProps) {
   if (isLoading) {
     return (
-      <section className="rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
+      <section className="rounded-lg border border-line bg-panel p-5 shadow-soft sm:p-6">
         <p className="font-bold">Loading {activeTicker || "ticker"}...</p>
         <div className="mt-5 grid gap-3">
-          <span className="h-5 w-1/2 rounded-md bg-neutral-200" />
-          <span className="h-5 w-1/3 rounded-md bg-neutral-200" />
-          <span className="h-32 rounded-md bg-neutral-200" />
+          <span className="h-5 w-1/2 rounded-md bg-panel-soft" />
+          <span className="h-5 w-1/3 rounded-md bg-panel-soft" />
+          <span className="h-32 rounded-md bg-panel-soft" />
         </div>
       </section>
     );
@@ -55,15 +55,15 @@ export function StockResult({
 
   if (!stock) {
     return (
-      <section className="rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
+      <section className="rounded-lg border border-line bg-panel p-5 shadow-soft sm:p-6">
         <p className="font-bold">Try a ticker</p>
-        <p className="mt-1 text-sm leading-6 text-neutral-600">
+        <p className="mt-1 text-sm leading-6 text-neutral-400">
           Start with a familiar company, then add favorites to your watchlist.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {["TSLA", "AAPL", "MSFT", "NVDA"].map((symbol) => (
             <button
-              className="rounded-md border border-line bg-paper px-3 py-2 text-sm font-bold transition hover:-translate-y-0.5 hover:border-ink hover:bg-white"
+              className="rounded-md border border-line bg-paper px-3 py-2 text-sm font-bold text-neutral-100 transition hover:-translate-y-0.5 hover:border-pulse-green hover:text-pulse-green"
               key={symbol}
               onClick={() => onAddExample(symbol)}
               type="button"
@@ -85,13 +85,13 @@ export function StockResult({
   const visibleSources = getVisibleSources(explanation, stock);
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
+    <section className="rounded-lg border border-line bg-panel p-5 shadow-soft sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight">{stock.companyName}</h2>
-          <p className="mt-1 text-sm font-bold uppercase text-neutral-500">{stock.symbol}</p>
+          <p className="mt-1 text-sm font-bold uppercase text-pulse-green">{stock.symbol}</p>
         </div>
-        <div className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-neutral-600">
+        <div className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-neutral-400">
           Previous close: <span className="font-bold text-ink">{currencyFormatter.format(stock.previousClose)}</span>
         </div>
       </div>
@@ -112,13 +112,13 @@ export function StockResult({
         {isExplaining ? (
           <LoadingLines />
         ) : explanation ? (
-          <p className="mt-3 text-base leading-7 text-neutral-700">"{explanation.summary}"</p>
+          <p className="mt-3 text-base leading-7 text-neutral-300">"{explanation.summary}"</p>
         ) : explanationError ? (
-          <p className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
+          <p className="mt-3 rounded-md border border-pulse-red/40 bg-pulse-red/10 p-3 text-sm leading-6 text-pulse-red">
             {explanationError}
           </p>
         ) : (
-          <p className="mt-3 text-base leading-7 text-neutral-700">
+          <p className="mt-3 text-base leading-7 text-neutral-300">
             "AI explanation will appear after the quote and news load."
           </p>
         )}
@@ -129,13 +129,13 @@ export function StockResult({
         {isExplaining ? (
           <LoadingLines />
         ) : explanationError ? (
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-7 text-neutral-700">
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-7 text-neutral-300">
             <li>AI key drivers are temporarily unavailable.</li>
             <li>Stock price data and recent news are still shown below.</li>
             <li>Try again after confirming API billing, quota, and server configuration.</li>
           </ul>
         ) : (
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-7 text-neutral-700">
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-7 text-neutral-300 marker:text-pulse-green">
             {getKeyDrivers(explanation, stock).map((driver) => (
               <li key={driver}>{driver}</li>
             ))}
@@ -154,26 +154,26 @@ export function StockResult({
           <div className="mt-3 grid gap-3">
             {visibleSources.map((source) => (
               <a
-                className="grid gap-2 rounded-md border border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-ink hover:bg-white"
+                className="grid gap-2 rounded-md border border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-pulse-green hover:bg-black"
                 href={source.url}
                 key={source.url}
                 rel="noreferrer"
                 target="_blank"
               >
-                <span className="text-sm font-bold text-pulse-teal">[{source.source}]</span>
+                <span className="text-sm font-bold text-pulse-green">[{source.source}]</span>
                 <span className="font-bold leading-6">{source.title}</span>
                 {source.summary ? (
-                  <span className="text-sm leading-6 text-neutral-600">{source.summary}</span>
+                  <span className="text-sm leading-6 text-neutral-400">{source.summary}</span>
                 ) : null}
               </a>
             ))}
           </div>
         ) : (
-          <p className="mt-3 text-sm leading-6 text-neutral-600">No sources cited.</p>
+          <p className="mt-3 text-sm leading-6 text-neutral-400">No sources cited.</p>
         )}
       </section>
 
-      <p className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
+      <p className="mt-6 rounded-md border border-line bg-paper p-3 text-sm leading-6 text-neutral-300">
         {explanation?.disclaimer || "This is not financial advice."}
       </p>
     </section>
@@ -206,9 +206,9 @@ function MiniChartPlaceholder({ positive }: { positive: boolean }) {
 function LoadingLines() {
   return (
     <div className="mt-4 grid gap-3">
-      <span className="h-4 w-11/12 rounded-md bg-neutral-200" />
-      <span className="h-4 w-3/4 rounded-md bg-neutral-200" />
-      <span className="h-4 w-2/3 rounded-md bg-neutral-200" />
+      <span className="h-4 w-11/12 rounded-md bg-panel-soft" />
+      <span className="h-4 w-3/4 rounded-md bg-panel-soft" />
+      <span className="h-4 w-2/3 rounded-md bg-panel-soft" />
     </div>
   );
 }
