@@ -1,4 +1,9 @@
-import type { ExplanationResponse, ExplanationSource, StockResponse } from "@/types/market";
+import type {
+  ExplanationResponse,
+  ExplanationSource,
+  LatestNewsItem,
+  StockResponse,
+} from "@/types/market";
 
 type StockResultProps = {
   activeTicker: string;
@@ -21,6 +26,11 @@ const percentFormatter = new Intl.NumberFormat("en-US", {
   style: "percent",
 });
 
+type VisibleArticle = ExplanationSource & {
+  datetime?: string;
+  summary?: string;
+};
+
 export function StockResult({
   activeTicker,
   explanation,
@@ -32,12 +42,12 @@ export function StockResult({
 }: StockResultProps) {
   if (isLoading) {
     return (
-      <section className="rounded-lg border border-line bg-white p-5 shadow-soft">
-        <p className="font-semibold">Loading {activeTicker || "ticker"}...</p>
+      <section className="rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
+        <p className="font-bold">Loading {activeTicker || "ticker"}...</p>
         <div className="mt-5 grid gap-3">
           <span className="h-5 w-1/2 rounded-md bg-neutral-200" />
           <span className="h-5 w-1/3 rounded-md bg-neutral-200" />
-          <span className="h-28 rounded-md bg-neutral-200" />
+          <span className="h-32 rounded-md bg-neutral-200" />
         </div>
       </section>
     );
@@ -45,12 +55,15 @@ export function StockResult({
 
   if (!stock) {
     return (
-      <section className="rounded-lg border border-line bg-white p-5 shadow-soft">
-        <p className="font-semibold">Examples</p>
+      <section className="rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
+        <p className="font-bold">Try a ticker</p>
+        <p className="mt-1 text-sm leading-6 text-neutral-600">
+          Start with a familiar company, then add favorites to your watchlist.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {["TSLA", "AAPL", "MSFT", "NVDA"].map((symbol) => (
             <button
-              className="rounded-md border border-line bg-paper px-3 py-2 text-sm font-semibold transition hover:border-ink"
+              className="rounded-md border border-line bg-paper px-3 py-2 text-sm font-bold transition hover:-translate-y-0.5 hover:border-ink hover:bg-white"
               key={symbol}
               onClick={() => onAddExample(symbol)}
               type="button"
@@ -72,19 +85,22 @@ export function StockResult({
   const visibleSources = getVisibleSources(explanation, stock);
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5 shadow-soft">
-      <div className="flex items-start justify-between gap-4">
+    <section className="rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">{stock.companyName}</h2>
-          <p className="mt-1 text-sm font-semibold uppercase text-neutral-500">{stock.symbol}</p>
+          <h2 className="text-2xl font-black tracking-tight">{stock.companyName}</h2>
+          <p className="mt-1 text-sm font-bold uppercase text-neutral-500">{stock.symbol}</p>
+        </div>
+        <div className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-neutral-600">
+          Previous close: <span className="font-bold text-ink">{currencyFormatter.format(stock.previousClose)}</span>
         </div>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <p className="text-4xl font-semibold leading-none">
+        <p className="text-4xl font-black leading-none tracking-tight sm:text-5xl">
           {currencyFormatter.format(stock.currentPrice)}
         </p>
-        <p className={`text-lg font-semibold ${movementClass}`}>
+        <p className={`rounded-md bg-paper px-3 py-2 text-lg font-black ${movementClass}`}>
           {signedChange} / {signedPercent}
         </p>
       </div>
@@ -92,7 +108,7 @@ export function StockResult({
       <MiniChartPlaceholder positive={isPositive} />
 
       <section className="mt-6 border-t border-line pt-5">
-        <h3 className="text-xl font-semibold">AI Explanation</h3>
+        <h3 className="text-xl font-black tracking-tight">AI Explanation</h3>
         {isExplaining ? (
           <LoadingLines />
         ) : explanation ? (
@@ -109,7 +125,7 @@ export function StockResult({
       </section>
 
       <section className="mt-6">
-        <h3 className="text-xl font-semibold">Key Drivers</h3>
+        <h3 className="text-xl font-black tracking-tight">Key Drivers</h3>
         {isExplaining ? (
           <LoadingLines />
         ) : explanationError ? (
@@ -128,24 +144,27 @@ export function StockResult({
       </section>
 
       <p className="mt-6 text-base">
-        <span className="font-semibold">Confidence:</span>{" "}
+        <span className="font-bold">Confidence:</span>{" "}
         <span className="capitalize">{explanation?.confidence ?? "low"}</span>
       </p>
 
       <section className="mt-6 border-t border-line pt-5">
-        <h3 className="text-xl font-semibold">Sources</h3>
+        <h3 className="text-xl font-black tracking-tight">Related Articles</h3>
         {visibleSources.length > 0 ? (
           <div className="mt-3 grid gap-3">
             {visibleSources.map((source) => (
               <a
-                className="grid gap-1 rounded-md border border-line bg-paper p-3 transition hover:border-ink"
+                className="grid gap-2 rounded-md border border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-ink hover:bg-white"
                 href={source.url}
                 key={source.url}
                 rel="noreferrer"
                 target="_blank"
               >
-                <span className="text-sm font-semibold text-pulse-teal">[{source.source}]</span>
-                <span className="font-semibold leading-6">{source.title}</span>
+                <span className="text-sm font-bold text-pulse-teal">[{source.source}]</span>
+                <span className="font-bold leading-6">{source.title}</span>
+                {source.summary ? (
+                  <span className="text-sm leading-6 text-neutral-600">{source.summary}</span>
+                ) : null}
               </a>
             ))}
           </div>
@@ -166,11 +185,12 @@ function MiniChartPlaceholder({ positive }: { positive: boolean }) {
     <div className="mt-5 rounded-md border border-line bg-paper p-4">
       <svg
         aria-label="Mini chart placeholder"
-        className={positive ? "h-28 w-full text-pulse-green" : "h-28 w-full text-pulse-red"}
+        className={positive ? "h-32 w-full text-pulse-green" : "h-32 w-full text-pulse-red"}
         preserveAspectRatio="none"
         role="img"
         viewBox="0 0 320 110"
       >
+        <path d="M0 88 H320 M0 56 H320 M0 24 H320" stroke="currentColor" strokeOpacity="0.12" />
         <path
           d="M0 74 C32 70 42 85 70 62 S118 38 154 51 207 82 246 55 286 28 320 33"
           fill="none"
@@ -211,14 +231,26 @@ function getKeyDrivers(
 function getVisibleSources(
   explanation: ExplanationResponse | null,
   stock: StockResponse,
-): ExplanationSource[] {
+): VisibleArticle[] {
   if (explanation?.sources.length) {
-    return explanation.sources;
+    return explanation.sources.map((source) => addNewsDetails(source, stock.latestNews));
   }
 
   return stock.latestNews.slice(0, 3).map((article) => ({
+    datetime: article.datetime,
     source: article.source,
+    summary: article.summary,
     title: article.title,
     url: article.url,
   }));
+}
+
+function addNewsDetails(source: ExplanationSource, latestNews: LatestNewsItem[]): VisibleArticle {
+  const matchingArticle = latestNews.find((article) => article.url === source.url);
+
+  return {
+    ...source,
+    datetime: matchingArticle?.datetime,
+    summary: matchingArticle?.summary,
+  };
 }
