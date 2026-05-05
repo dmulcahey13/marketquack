@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { homeResetEvent } from "@/components/SiteHeader";
@@ -153,6 +154,17 @@ export function MarketQuackApp() {
   return (
     <main className="px-4 py-8 text-ink sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        <div className="relative mx-auto aspect-[16/9] w-full max-w-4xl overflow-hidden rounded-lg border border-line bg-black shadow-soft sm:aspect-[21/9]">
+          <Image
+            alt="MarketQuack"
+            className="object-cover object-center"
+            fill
+            priority
+            sizes="(min-width: 1024px) 896px, calc(100vw - 32px)"
+            src="/marketquack-header.png"
+          />
+        </div>
+
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
           <div className="grid gap-4 pt-1">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-pulse-green">
