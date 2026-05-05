@@ -15,6 +15,7 @@ MarketQuack is a Next.js MVP for searching a stock ticker and viewing live Finnh
 - Twelve Data historical chart data
 - OpenAI structured explanation using only the cleaned quote and news data
 - Supabase Auth login/signup
+- Authenticated Practice Portfolio with virtual cash and fake holdings
 - Local browser watchlist
 - `.env.local` holds API keys and public Supabase Auth config
 
@@ -69,3 +70,15 @@ Try `AAPL`, `MSFT`, or `NVDA`. The API route returns an error when Finnhub has n
 6. Add the same values to Vercel project environment variables before deploying.
 
 Do not use the Supabase service role key or any `sb_secret_...` key in frontend code, `.env.local` values prefixed with `NEXT_PUBLIC_`, or Vercel public environment variables. MarketQuack only accepts public Supabase keys that start with `sb_publishable_` or legacy anon JWT keys that start with `eyJ`.
+
+## Practice Portfolio Setup
+
+Practice Portfolio stores virtual portfolios and fake holdings in Supabase. It does not connect to a brokerage, place trades, move money, or provide financial advice.
+
+Run the SQL in `supabase/practice-portfolio.sql` from the Supabase SQL editor before using `/portfolio`. It creates:
+
+- `practice_portfolios`
+- `practice_holdings`
+- `practice_transactions`
+
+The SQL enables Row Level Security and policies so authenticated users can only access their own practice portfolio data.

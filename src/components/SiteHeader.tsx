@@ -54,6 +54,12 @@ export function SiteHeader() {
           >
             Stock Basics
           </Link>
+          <Link
+            className="rounded-md px-3 py-2 transition hover:bg-panel-soft hover:text-pulse-green"
+            href="/portfolio"
+          >
+            Practice Portfolio
+          </Link>
           <AuthNav />
         </nav>
       </div>
