@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import type {
-  ExplanationConfidence,
   ExplanationResponse,
   ExplanationSource,
   LatestNewsItem,
@@ -9,18 +8,22 @@ import type {
 } from "@/types/market";
 
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
-const defaultModel = "gpt-4.1-nano";
+const defaultModel = "gpt-5-nano";
 const maxNewsItemsForAI = 5;
 const maxNewsSummaryCharacters = 360;
-const maxOutputTokens = 550;
+const maxOutputTokens = 900;
 const minExplanationWords = 150;
 const maxExplanationWords = 250;
 const aiInstruction =
   "You are a financial news explainer. Explain possible reasons why a stock is moving using only the provided quote data and news headlines/summaries. Be clear, cautious, and beginner-friendly. If the evidence is weak, say that. Do not recommend buying, selling, or holding.";
 const disclaimer = "This is not financial advice.";
-const aiUnavailableMessage = "AI explanations are temporarily unavailable.";
-const aiBillingUnavailableMessage =
-  "AI explanations are temporarily unavailable because billing or quota is not available.";
+
+type OpenAIErrorType =
+  | "missing_openai_key"
+  | "invalid_openai_key"
+  | "quota_or_billing"
+  | "invalid_model"
+  | "openai_request_failed";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +33,9 @@ type OpenAIResponsesPayload = {
     message?: string;
     type?: string;
   };
+  incomplete_details?: {
+    reason?: string;
+  };
   output?: Array<{
     content?: Array<{
       type?: string;
@@ -38,6 +44,7 @@ type OpenAIResponsesPayload = {
     }>;
   }>;
   output_text?: string;
+  status?: string;
 };
 
 class RouteError extends Error {
@@ -59,7 +66,7 @@ export async function POST(request: Request) {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
 
     if (!apiKey) {
-      throw new RouteError(`${aiUnavailableMessage} Stock price and news are still available.`, 503);
+      throw new RouteError("missing_openai_key", 503);
     }
 
     if (stock.latestNews.length === 0) {
@@ -75,10 +82,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    return NextResponse.json(
-      { error: `${aiUnavailableMessage} Stock price and news are still available.` },
-      { status: 503 },
-    );
+    logOpenAIError({
+      errorType: "openai_request_failed",
+      message: error instanceof Error ? error.message : "Unknown OpenAI route error.",
+      model: getOpenAIModel(),
+      status: "unexpected_exception",
+    });
+
+    return NextResponse.json({ error: "openai_request_failed" }, { status: 503 });
   }
 }
 
@@ -87,26 +98,20 @@ async function requestOpenAIExplanation(
   apiKey: string,
 ): Promise<unknown> {
   let response: Response;
+  const model = getOpenAIModel();
 
   try {
     response = await fetch(openAiResponsesUrl, {
       body: JSON.stringify({
-        input: [
-          {
-            content: aiInstruction,
-            role: "system",
-          },
-          {
-            content: JSON.stringify({
-              instructions:
-                "Return structured JSON only. Write 150-250 words total across summary and keyDrivers. summary must be exactly 4 beginner-friendly sentences totaling about 100-140 words. keyDrivers should contain exactly 4 bullet strings when evidence is available, each about 15-25 words. confidence must be low, medium, or high. sources must include only source titles and URLs from latestNews that were actually used. Keep source links out of summary and keyDrivers. If there is not enough evidence, say so clearly and use low confidence.",
-              stock: createOpenAIStockInput(stock),
-            }),
-            role: "user",
-          },
-        ],
+        input: JSON.stringify({
+          instructions:
+            "Return structured JSON only. Write 150-250 words total across summary and keyDrivers. summary must be exactly 4 beginner-friendly sentences totaling about 100-140 words. keyDrivers should contain exactly 4 bullet strings when evidence is available, each about 15-25 words. sources must include only source titles and URLs from latestNews that were actually used. Keep source links out of summary and keyDrivers. If there is not enough evidence, say so clearly.",
+          stock: createOpenAIStockInput(stock),
+        }),
+        instructions: aiInstruction,
         max_output_tokens: maxOutputTokens,
-        model: process.env.OPENAI_MODEL?.trim() || defaultModel,
+        model,
+        ...(model.startsWith("gpt-5") ? { reasoning: { effort: "minimal" } } : {}),
         store: false,
         text: {
           format: {
@@ -115,6 +120,7 @@ async function requestOpenAIExplanation(
             strict: true,
             type: "json_schema",
           },
+          verbosity: "low",
         },
       }),
       headers: {
@@ -123,26 +129,70 @@ async function requestOpenAIExplanation(
       },
       method: "POST",
     });
-  } catch {
-    throw new RouteError(`${aiUnavailableMessage} Stock price and news are still available.`, 503);
+  } catch (error) {
+    logOpenAIError({
+      errorType: "openai_request_failed",
+      message: error instanceof Error ? error.message : "Network request to OpenAI failed.",
+      model,
+      status: "network_error",
+    });
+
+    throw new RouteError("openai_request_failed", 503);
   }
 
-  const payload = (await response.json()) as OpenAIResponsesPayload;
+  const payload = await readOpenAIResponse(response, model);
 
   if (!response.ok) {
-    throw new RouteError(getOpenAIErrorMessage(response.status, payload), 503);
+    const errorType = classifyOpenAIError(response.status, payload);
+
+    logOpenAIError({
+      code: payload.error?.code,
+      errorType,
+      message: payload.error?.message ?? "OpenAI returned an error without a message.",
+      model,
+      openAIType: payload.error?.type,
+      status: response.status,
+    });
+
+    throw new RouteError(errorType, 503);
+  }
+
+  if (payload.status === "incomplete") {
+    logOpenAIError({
+      code: payload.incomplete_details?.reason,
+      errorType: "openai_request_failed",
+      message: `OpenAI response was incomplete: ${payload.incomplete_details?.reason ?? "unknown_reason"}`,
+      model,
+      status: response.status,
+    });
+
+    throw new RouteError("openai_request_failed", 503);
   }
 
   const outputText = extractOutputText(payload);
 
   if (!outputText) {
-    throw new RouteError(`${aiUnavailableMessage} Stock price and news are still available.`, 503);
+    logOpenAIError({
+      errorType: "openai_request_failed",
+      message: "OpenAI response did not contain output_text.",
+      model,
+      status: response.status,
+    });
+
+    throw new RouteError("openai_request_failed", 503);
   }
 
   try {
     return JSON.parse(outputText) as unknown;
-  } catch {
-    throw new RouteError(`${aiUnavailableMessage} Stock price and news are still available.`, 503);
+  } catch (error) {
+    logOpenAIError({
+      errorType: "openai_request_failed",
+      message: error instanceof Error ? error.message : "OpenAI output was not valid JSON.",
+      model,
+      status: response.status,
+    });
+
+    throw new RouteError("openai_request_failed", 503);
   }
 }
 
@@ -216,13 +266,12 @@ function cleanLatestNews(value: unknown): LatestNewsItem[] {
 
 function normalizeExplanation(value: unknown, stock: StockResponse): ExplanationResponse {
   if (!isRecord(value)) {
-    throw new RouteError(`${aiUnavailableMessage} Stock price and news are still available.`, 503);
+    throw new RouteError("openai_request_failed", 503);
   }
 
   const summary = cleanText(value.summary);
 
   return {
-    confidence: normalizeConfidence(value.confidence),
     disclaimer,
     keyDrivers: normalizeKeyDrivers(value.keyDrivers, stock),
     sources: normalizeSources(value.sources, stock.latestNews),
@@ -231,10 +280,6 @@ function normalizeExplanation(value: unknown, stock: StockResponse): Explanation
         ? summary
         : createInsufficientEvidenceExplanation(stock).summary,
   };
-}
-
-function normalizeConfidence(value: unknown): ExplanationConfidence {
-  return value === "high" || value === "medium" || value === "low" ? value : "low";
 }
 
 function normalizeKeyDrivers(value: unknown, stock: StockResponse): string[] {
@@ -287,7 +332,7 @@ function extractOutputText(payload: OpenAIResponsesPayload): string {
   for (const output of payload.output ?? []) {
     for (const content of output.content ?? []) {
       if (content.type === "refusal" && content.refusal) {
-        throw new RouteError(`${aiUnavailableMessage} Stock price and news are still available.`, 503);
+        throw new RouteError("openai_request_failed", 503);
       }
 
       if ((content.type === "output_text" || content.type === "text") && content.text) {
@@ -325,7 +370,6 @@ function createInsufficientEvidenceExplanation(stock: StockResponse): Explanatio
   const formattedPercent = `${stock.percentChange.toFixed(2)}%`;
 
   return {
-    confidence: "low",
     disclaimer,
     keyDrivers: [
       `${stock.symbol} is ${direction} ${formattedPercent} from the previous close in the provided quote data.`,
@@ -333,7 +377,7 @@ function createInsufficientEvidenceExplanation(stock: StockResponse): Explanatio
       "The move may reflect broader market or sector factors, but those inputs were not provided.",
     ],
     sources: [],
-    summary: `${stock.companyName} is moving ${direction} based on the provided quote data. However, there is not enough recent company news in the provided data to explain the move confidently. The evidence is weak, so this explanation has low confidence.`,
+    summary: `${stock.companyName} is moving ${direction} based on the provided quote data. However, there is not enough recent company news in the provided data to clearly explain the move. The evidence is limited, so this explanation stays cautious.`,
   };
 }
 
@@ -387,9 +431,37 @@ function countExplanationWords(explanation: ExplanationResponse): number {
     .filter(Boolean).length;
 }
 
-function getOpenAIErrorMessage(status: number, payload: OpenAIResponsesPayload): string {
+async function readOpenAIResponse(
+  response: Response,
+  model: string,
+): Promise<OpenAIResponsesPayload> {
+  const rawResponse = await response.text();
+
+  try {
+    return rawResponse ? (JSON.parse(rawResponse) as OpenAIResponsesPayload) : {};
+  } catch (error) {
+    logOpenAIError({
+      errorType: "openai_request_failed",
+      message:
+        error instanceof Error
+          ? `OpenAI returned non-JSON response: ${error.message}`
+          : "OpenAI returned non-JSON response.",
+      model,
+      status: response.status,
+    });
+
+    throw new RouteError("openai_request_failed", 503);
+  }
+}
+
+function classifyOpenAIError(status: number, payload: OpenAIResponsesPayload): OpenAIErrorType {
   const code = payload.error?.code?.toLowerCase() ?? "";
   const type = payload.error?.type?.toLowerCase() ?? "";
+  const message = payload.error?.message?.toLowerCase() ?? "";
+
+  if (status === 401 || code.includes("invalid_api_key") || message.includes("api key")) {
+    return "invalid_openai_key";
+  }
 
   if (
     status === 402 ||
@@ -397,12 +469,52 @@ function getOpenAIErrorMessage(status: number, payload: OpenAIResponsesPayload):
     code.includes("quota") ||
     code.includes("billing") ||
     type.includes("quota") ||
-    type.includes("billing")
+    type.includes("billing") ||
+    message.includes("quota") ||
+    message.includes("billing")
   ) {
-    return `${aiBillingUnavailableMessage} Stock price and news are still available.`;
+    return "quota_or_billing";
   }
 
-  return `${aiUnavailableMessage} Stock price and news are still available.`;
+  if (
+    code.includes("model") ||
+    type.includes("model") ||
+    message.includes("model") ||
+    message.includes("does not exist")
+  ) {
+    return "invalid_model";
+  }
+
+  return "openai_request_failed";
+}
+
+function getOpenAIModel() {
+  return defaultModel;
+}
+
+function logOpenAIError({
+  code,
+  errorType,
+  message,
+  model,
+  openAIType,
+  status,
+}: {
+  code?: string;
+  errorType: OpenAIErrorType;
+  message: string;
+  model: string;
+  openAIType?: string;
+  status: number | string;
+}) {
+  console.error("[MarketQuack] OpenAI explanation error", {
+    code: code ?? "none",
+    errorType,
+    message,
+    model,
+    openAIType: openAIType ?? "none",
+    status,
+  });
 }
 
 function hasDirectRecommendation(value: string): boolean {
@@ -430,10 +542,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const explanationSchema = {
   additionalProperties: false,
   properties: {
-    confidence: {
-      enum: ["low", "medium", "high"],
-      type: "string",
-    },
     disclaimer: {
       type: "string",
     },
@@ -466,6 +574,6 @@ const explanationSchema = {
       type: "string",
     },
   },
-  required: ["summary", "keyDrivers", "confidence", "sources", "disclaimer"],
+  required: ["summary", "keyDrivers", "sources", "disclaimer"],
   type: "object",
 } as const;

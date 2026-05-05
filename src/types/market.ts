@@ -4,9 +4,23 @@ export type LatestNewsItem = {
   summary: string;
   url: string;
   datetime: string;
+  relevanceLabel?: "company" | "market";
+  relevanceScore?: number;
 };
 
-export type ExplanationConfidence = "low" | "medium" | "high";
+export type ChartRange = "1D" | "5D" | "1M" | "6M" | "YTD" | "1Y";
+
+export type ChartPoint = {
+  date: string;
+  price: number;
+};
+
+export type ChartHistoryResponse = {
+  symbol: string;
+  range: ChartRange;
+  points: ChartPoint[];
+  error?: string;
+};
 
 export type ExplanationSource = {
   title: string;
@@ -17,7 +31,6 @@ export type ExplanationSource = {
 export type ExplanationResponse = {
   summary: string;
   keyDrivers: string[];
-  confidence: ExplanationConfidence;
   sources: ExplanationSource[];
   disclaimer: string;
 };
@@ -25,6 +38,7 @@ export type ExplanationResponse = {
 export type StockResponse = {
   symbol: string;
   companyName: string;
+  companyDescription?: string;
   currentPrice: number;
   priceChange: number;
   percentChange: number;

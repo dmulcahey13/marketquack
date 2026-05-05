@@ -10,11 +10,13 @@ MarketQuack is a Next.js MVP for searching a stock ticker and viewing live Finnh
 - Tailwind CSS UI
 - Server API route at `/api/stock?ticker=AAPL`
 - Server API route at `/api/explain`
+- Server API route at `/api/history?symbol=AAPL&range=1M`
 - Finnhub quote, company profile, and 7-day company news data
+- Twelve Data historical chart data
 - OpenAI structured explanation using only the cleaned quote and news data
-- Local browser watchlist with no authentication and no Supabase yet
-- `.env.local` holds `FINNHUB_API_KEY` and `OPENAI_API_KEY`
-- Optional `OPENAI_MODEL` can override the default low-cost explanation model, `gpt-4.1-nano`
+- Supabase Auth login/signup
+- Local browser watchlist
+- `.env.local` holds API keys and public Supabase Auth config
 
 ## Run Locally
 
@@ -31,12 +33,16 @@ MarketQuack is a Next.js MVP for searching a stock ticker and viewing live Finnh
    npm install
    ```
 
-4. Add your Finnhub API key to `.env.local` in the project root:
+4. Add your API keys and public Supabase Auth config to `.env.local` in the project root:
 
    ```bash
    FINNHUB_API_KEY=your_finnhub_api_key_here
    OPENAI_API_KEY=your_openai_api_key_here
-   OPENAI_MODEL=
+   TWELVE_DATA_API_KEY=your_twelve_data_api_key_here
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+   # Or use the newer public key name instead:
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key_here
    ```
 
 5. Start the dev server:
@@ -52,3 +58,14 @@ MarketQuack is a Next.js MVP for searching a stock ticker and viewing live Finnh
    ```
 
 Try `AAPL`, `MSFT`, or `NVDA`. The API route returns an error when Finnhub has no quote data for a ticker.
+
+## Supabase Auth Setup
+
+1. Create a Supabase project at `https://supabase.com`.
+2. In Supabase, open Project Settings, then API.
+3. Copy the Project URL into `NEXT_PUBLIC_SUPABASE_URL`. The value should be the URL only, such as `https://your-project-ref.supabase.co`.
+4. Copy the anon public key into `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or copy the newer publishable key into `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+5. Add `NEXT_PUBLIC_SUPABASE_URL` and one public key variable to `.env.local` for local development.
+6. Add the same values to Vercel project environment variables before deploying.
+
+Do not use the Supabase service role key or any `sb_secret_...` key in frontend code, `.env.local` values prefixed with `NEXT_PUBLIC_`, or Vercel public environment variables. MarketQuack only accepts public Supabase keys that start with `sb_publishable_` or legacy anon JWT keys that start with `eyJ`.

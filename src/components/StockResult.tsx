@@ -1,9 +1,9 @@
 import type {
   ExplanationResponse,
-  ExplanationSource,
   LatestNewsItem,
   StockResponse,
 } from "@/types/market";
+import { StockLineChart } from "@/components/StockLineChart";
 
 type StockResultProps = {
   activeTicker: string;
@@ -26,10 +26,7 @@ const percentFormatter = new Intl.NumberFormat("en-US", {
   style: "percent",
 });
 
-type VisibleArticle = ExplanationSource & {
-  datetime?: string;
-  summary?: string;
-};
+type VisibleArticle = LatestNewsItem;
 
 export function StockResult({
   activeTicker,
@@ -82,7 +79,13 @@ export function StockResult({
   )}`;
   const signedChange = `${isPositive ? "+" : ""}${currencyFormatter.format(stock.priceChange)}`;
   const movementClass = isPositive ? "text-pulse-green" : "text-pulse-red";
-  const visibleSources = getVisibleSources(explanation, stock);
+  const relatedArticles = getRelatedArticles(stock.latestNews);
+  const companyArticles = relatedArticles.filter(
+    (article) => article.relevanceLabel !== "market",
+  );
+  const marketArticles = relatedArticles.filter(
+    (article) => article.relevanceLabel === "market",
+  );
 
   return (
     <section className="rounded-lg border border-line bg-panel p-5 shadow-soft sm:p-6">
@@ -105,101 +108,84 @@ export function StockResult({
         </p>
       </div>
 
-      <MiniChartPlaceholder positive={isPositive} />
+      <section className="mt-5 rounded-md border border-line bg-paper p-4">
+        <h3 className="text-sm font-black uppercase tracking-[0.16em] text-pulse-green">
+          Company Snapshot
+        </h3>
+        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-neutral-300">
+          {stock.companyDescription || "Company overview is currently unavailable."}
+        </p>
+      </section>
 
-      <section className="mt-6 border-t border-line pt-5">
-        <h3 className="text-xl font-black tracking-tight">AI Explanation</h3>
+      <StockLineChart
+        symbol={stock.symbol}
+      />
+
+      <section className="mt-6 min-w-0 border-t border-line pt-5">
+        <h3 className="text-xl font-black tracking-tight">AI Overview</h3>
         {isExplaining ? (
           <LoadingLines />
         ) : explanation ? (
-          <p className="mt-3 text-base leading-7 text-neutral-300">"{explanation.summary}"</p>
+          <p className="mt-3 whitespace-pre-wrap break-words text-base leading-7 text-neutral-300">
+            "{explanation.summary}"
+          </p>
         ) : explanationError ? (
-          <p className="mt-3 rounded-md border border-pulse-red/40 bg-pulse-red/10 p-3 text-sm leading-6 text-pulse-red">
+          <p className="mt-3 whitespace-pre-wrap break-words rounded-md border border-pulse-red/40 bg-pulse-red/10 p-3 text-sm leading-6 text-pulse-red">
             {explanationError}
           </p>
         ) : (
-          <p className="mt-3 text-base leading-7 text-neutral-300">
+          <p className="mt-3 whitespace-pre-wrap break-words text-base leading-7 text-neutral-300">
             "AI explanation will appear after the quote and news load."
           </p>
         )}
       </section>
 
-      <section className="mt-6">
+      <section className="mt-6 min-w-0">
         <h3 className="text-xl font-black tracking-tight">Key Drivers</h3>
         {isExplaining ? (
           <LoadingLines />
         ) : explanationError ? (
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-7 text-neutral-300">
+          <ul className="mt-3 list-disc space-y-2 break-words pl-5 text-base leading-7 text-neutral-300">
             <li>AI key drivers are temporarily unavailable.</li>
             <li>Stock price data and recent news are still shown below.</li>
             <li>Try again after confirming API billing, quota, and server configuration.</li>
           </ul>
         ) : (
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-7 text-neutral-300 marker:text-pulse-green">
+          <ul className="mt-3 list-disc space-y-2 break-words pl-5 text-base leading-7 text-neutral-300 marker:text-pulse-green">
             {getKeyDrivers(explanation, stock).map((driver) => (
-              <li key={driver}>{driver}</li>
+              <li className="whitespace-normal break-words" key={driver}>
+                {driver}
+              </li>
             ))}
           </ul>
         )}
       </section>
 
-      <p className="mt-6 text-base">
-        <span className="font-bold">Confidence:</span>{" "}
-        <span className="capitalize">{explanation?.confidence ?? "low"}</span>
-      </p>
-
       <section className="mt-6 border-t border-line pt-5">
         <h3 className="text-xl font-black tracking-tight">Related Articles</h3>
-        {visibleSources.length > 0 ? (
-          <div className="mt-3 grid gap-3">
-            {visibleSources.map((source) => (
-              <a
-                className="grid gap-2 rounded-md border border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-pulse-green hover:bg-black"
-                href={source.url}
-                key={source.url}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <span className="text-sm font-bold text-pulse-green">[{source.source}]</span>
-                <span className="font-bold leading-6">{source.title}</span>
-                {source.summary ? (
-                  <span className="text-sm leading-6 text-neutral-400">{source.summary}</span>
-                ) : null}
-              </a>
-            ))}
+        {relatedArticles.length > 0 ? (
+          <div className="mt-3 grid gap-4">
+            {companyArticles.length > 0 ? <ArticleList articles={companyArticles} /> : null}
+            {marketArticles.length > 0 ? (
+              <div className="grid gap-3">
+                <h4 className="text-sm font-black uppercase tracking-[0.16em] text-neutral-500">
+                  Broader Market Context
+                </h4>
+                <ArticleList articles={marketArticles} />
+              </div>
+            ) : null}
           </div>
         ) : (
-          <p className="mt-3 text-sm leading-6 text-neutral-400">No sources cited.</p>
+          <p className="mt-3 text-sm leading-6 text-neutral-400">
+            No clearly related articles found right now.
+          </p>
         )}
       </section>
 
-      <p className="mt-6 rounded-md border border-line bg-paper p-3 text-sm leading-6 text-neutral-300">
+      <p className="mt-6 whitespace-pre-wrap break-words rounded-md border border-line bg-paper p-3 text-sm leading-6 text-neutral-300">
         {explanation?.disclaimer || "This is not financial advice."}
       </p>
     </section>
-  );
-}
-
-function MiniChartPlaceholder({ positive }: { positive: boolean }) {
-  return (
-    <div className="mt-5 rounded-md border border-line bg-paper p-4">
-      <svg
-        aria-label="Mini chart placeholder"
-        className={positive ? "h-32 w-full text-pulse-green" : "h-32 w-full text-pulse-red"}
-        preserveAspectRatio="none"
-        role="img"
-        viewBox="0 0 320 110"
-      >
-        <path d="M0 88 H320 M0 56 H320 M0 24 H320" stroke="currentColor" strokeOpacity="0.12" />
-        <path
-          d="M0 74 C32 70 42 85 70 62 S118 38 154 51 207 82 246 55 286 28 320 33"
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeWidth="4"
-        />
-      </svg>
-    </div>
   );
 }
 
@@ -209,6 +195,28 @@ function LoadingLines() {
       <span className="h-4 w-11/12 rounded-md bg-panel-soft" />
       <span className="h-4 w-3/4 rounded-md bg-panel-soft" />
       <span className="h-4 w-2/3 rounded-md bg-panel-soft" />
+    </div>
+  );
+}
+
+function ArticleList({ articles }: { articles: VisibleArticle[] }) {
+  return (
+    <div className="grid gap-3">
+      {articles.map((article) => (
+        <a
+          className="grid gap-2 rounded-md border border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-pulse-green hover:bg-black"
+          href={article.url}
+          key={article.url}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span className="text-sm font-bold text-pulse-green">[{article.source}]</span>
+          <span className="font-bold leading-6">{article.title}</span>
+          {article.summary ? (
+            <span className="text-sm leading-6 text-neutral-400">{article.summary}</span>
+          ) : null}
+        </a>
+      ))}
     </div>
   );
 }
@@ -228,29 +236,6 @@ function getKeyDrivers(
   return stock.latestNews.slice(0, 3).map((article) => article.title);
 }
 
-function getVisibleSources(
-  explanation: ExplanationResponse | null,
-  stock: StockResponse,
-): VisibleArticle[] {
-  if (explanation?.sources.length) {
-    return explanation.sources.map((source) => addNewsDetails(source, stock.latestNews));
-  }
-
-  return stock.latestNews.slice(0, 3).map((article) => ({
-    datetime: article.datetime,
-    source: article.source,
-    summary: article.summary,
-    title: article.title,
-    url: article.url,
-  }));
-}
-
-function addNewsDetails(source: ExplanationSource, latestNews: LatestNewsItem[]): VisibleArticle {
-  const matchingArticle = latestNews.find((article) => article.url === source.url);
-
-  return {
-    ...source,
-    datetime: matchingArticle?.datetime,
-    summary: matchingArticle?.summary,
-  };
+function getRelatedArticles(latestNews: LatestNewsItem[]): VisibleArticle[] {
+  return latestNews.slice(0, 8);
 }

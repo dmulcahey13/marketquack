@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { homeResetEvent } from "@/components/SiteHeader";
 import { StockResult } from "@/components/StockResult";
 import type { ExplanationResponse, StockResponse } from "@/types/market";
 
@@ -18,6 +19,17 @@ export function MarketQuackApp() {
   const [isExplaining, setIsExplaining] = useState(false);
   const [error, setError] = useState("");
   const [explanationError, setExplanationError] = useState("");
+
+  function resetHomeView() {
+    setTicker("");
+    setActiveTicker("");
+    setStock(null);
+    setExplanation(null);
+    setIsLoading(false);
+    setIsExplaining(false);
+    setError("");
+    setExplanationError("");
+  }
 
   useEffect(() => {
     try {
@@ -44,6 +56,14 @@ export function MarketQuackApp() {
 
     window.localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
   }, [hasLoadedWatchlist, watchlist]);
+
+  useEffect(() => {
+    window.addEventListener(homeResetEvent, resetHomeView);
+
+    return () => {
+      window.removeEventListener(homeResetEvent, resetHomeView);
+    };
+  }, []);
 
   const normalizedTicker = useMemo(() => ticker.trim().toUpperCase(), [ticker]);
   const currentTicker = stock?.symbol;
